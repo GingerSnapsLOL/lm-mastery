@@ -50,3 +50,12 @@ tmp_*/
 *.pt
 *.bin
 *.safetensors
+
+01-pretraining-pipeline/results/tokenizer/spm_corpus.txt
+**/checkpoints/
+**/*.arrow
+**/*_parquet/
+**/*.parquet
+**/*.pt
+**/*.bin
+**/*.safetensors
