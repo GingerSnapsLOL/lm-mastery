@@ -4,9 +4,9 @@ __pycache__/
 .cache/ wandb/ logs/
 
 # Big data & checkpoints (keep them off Git)
-data/
+**/tokenizer/
 01-pretraining-pipeline/data/
-01-pretraining-pipeline/results/checkpoints/
+01-pretraining-pipeline/results/
 **/checkpoints/
 **/tmp_eval*/
 **/*.arrow
@@ -19,3 +19,26 @@ data/
 **/scheduler.pt
 **/trainer_state.json
 .DS_Store
+
+
+.DS_Store
+
+*/tmp_eval*/
+
+
+# Build & packaging
+*.egg-info/
+*.pkl
+*.pt
+*.bin
+
+# Datasets / checkpoints
+*.arrow
+*.parquet
+*.h5
+*.jsonl
+*.zip
+*.tar.gz
+tmp_*/
+01-pretraining-pipeline/data/processed/
+01-pretraining-pipeline/results/checkpoints/
