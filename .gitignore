@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/ /venv/ .env
+.cache/ wandb/ logs/
+
+# Big data & checkpoints (keep them off Git)
+data/
+01-pretraining-pipeline/data/
+01-pretraining-pipeline/results/checkpoints/
+**/checkpoints/
+**/tmp_eval*/
+**/*.arrow
+**/*_parquet/
+**/*.parquet
+**/*.safetensors
+**/pytorch_model.bin
+**/*.pt
+**/optimizer.pt
+**/scheduler.pt
+**/trainer_state.json
+.DS_Store
