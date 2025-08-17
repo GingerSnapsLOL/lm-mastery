@@ -42,3 +42,11 @@ __pycache__/
 tmp_*/
 01-pretraining-pipeline/data/processed/
 01-pretraining-pipeline/results/checkpoints/
+01-pretraining-pipeline/results/tokenizer
+*.arrow
+*_parquet/
+*.parquet
+**/checkpoints/
+*.pt
+*.bin
+*.safetensors

@@ -30,6 +30,7 @@ dev = [
 [project.scripts]
 pretrain-alko = "scripts.pretrain_alko:main"
 pretrain-llama = "scripts.pretrain_llama:main"
+train-sft = "scripts.train_sft:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
