@@ -1,0 +1,26 @@
+python 01-pretraining-pipeline\scripts\build_corpus_big_v3.py ^
+  --out_dir 01-pretraining-pipeline\data\raw ^
+  --fw_docs 750000 ^
+  --val_ratio 0.01 ^
+  --add_wt103
+
+python 01-pretraining-pipeline\scripts\build_tokenizer.py ^
+  --input_glob "01-pretraining-pipeline\data\raw\*_big.txt" ^
+  --vocab_size 32000 --model_type bpe ^
+  --output "01-pretraining-pipeline\results\tokenizer"
+
+
+python 01-pretraining-pipeline\scripts\pack_dataset_chunked.py ^
+  --tokenizer_dir "01-pretraining-pipeline\results\tokenizer" ^
+  --input_file "01-pretraining-pipeline\data\raw\train_big.txt" ^
+  --seq_len 1024 ^
+  --output_path "01-pretraining-pipeline\data\processed\train_big.arrow" ^
+  --shard_seqs 8000
+
+
+python 01-pretraining-pipeline\scripts\pack_dataset_chunked.py ^
+  --tokenizer_dir "01-pretraining-pipeline\results\tokenizer" ^
+  --input_file "01-pretraining-pipeline\data\raw\validation_big.txt" ^
+  --seq_len 1024 ^
+  --output_path "01-pretraining-pipeline\data\processed\val_big.arrow" ^
+  --shard_seqs 4000
