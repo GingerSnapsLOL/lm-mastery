@@ -1,0 +1,3 @@
+[console_scripts]
+pretrain-alko = scripts.pretrain_alko:main
+pretrain-llama = scripts.pretrain_llama:main
