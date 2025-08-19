@@ -1,5 +1,5 @@
 import torch, os
-import alko  # registers AlkoConfig/AlkoLLM with Auto*
+import alko  # registers AlkoConfig/AlkoForCausalLM with Auto*
 from transformers import AutoModelForCausalLM, LlamaTokenizer
 
 CKPT = r"01-pretraining-pipeline/results/checkpoints/run_alko_wt103"
@@ -55,7 +55,7 @@ model.config.use_cache = False
 if torch.cuda.is_available():
     model.to("cuda")
 
-prompt = "You are AlkoLLM. In two sentences, what is a transformer?"
+prompt = "You are AlkoForCausalLM. In two sentences, what is a transformer?"
 inputs = tok(prompt, return_tensors="pt").to(model.device)
 
 
@@ -86,7 +86,7 @@ except Exception as e:
     print(e)
     print("-"*100)
     print(simple_generate(model, tok, 
-    "You are AlkoLLM. In one sentence, what is a transformer?", 120, 0.9, 0.95))
+    "You are AlkoForCausalLM. In one sentence, what is a transformer?", 120, 0.9, 0.95))
     print("-"*100)
 
 

@@ -10,7 +10,7 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from lm_mastery.models.alko import AlkoConfig, AlkoLLM
+from lm_mastery.models.alko import AlkoConfig, AlkoForCausalLM
 from lm_mastery.data.loaders import load_train_dataset
 from lm_mastery.data.collators import FixedLenCollator
 from lm_mastery.train.pretrain import TrainingConfig, create_trainer, init_model_weights
@@ -71,7 +71,7 @@ def main():
         use_cache=False,
     )
     
-    model = AlkoLLM(config)
+    model = AlkoForCausalLM(config)
     model.resize_token_embeddings(len(tokenizer))
     
     # Initialize weights conservatively

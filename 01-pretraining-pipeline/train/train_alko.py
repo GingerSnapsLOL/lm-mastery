@@ -3,7 +3,7 @@ from datasets import load_from_disk
 from transformers import TrainingArguments, set_seed, Trainer
 from transformers import LlamaTokenizer
 from alko.configuration_alko import AlkoConfig
-from alko.modeling_alko import AlkoLLM
+from alko.modeling_alko import AlkoForCausalLM
 import math
 
 # -------------------- paths & knobs --------------------
@@ -36,7 +36,7 @@ if tok.pad_token is None:
 with open(CFG, "r") as f:
     cfg_yaml = yaml.safe_load(f)
 cfg = AlkoConfig(**cfg_yaml)
-model = AlkoLLM(cfg)
+model = AlkoForCausalLM(cfg)
 # allow tokenizer growth if special tokens were added
 model.resize_token_embeddings(len(tok))
 model.config.pad_token_id = tok.pad_token_id

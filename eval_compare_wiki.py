@@ -3,7 +3,7 @@ import os, math, torch
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 
-import alko  # <-- registers AlkoConfig/AlkoLLM with Auto*
+import alko  # <-- registers AlkoConfig/AlkoForCausalLM with Auto*
 
 # add your local checkpoint folder here
 LOCAL_ALKO = r"01-pretraining-pipeline/results/checkpoints/run_alko_big"

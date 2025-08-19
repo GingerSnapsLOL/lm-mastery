@@ -1,3 +1,7 @@
 [console_scripts]
 pretrain-alko = scripts.pretrain_alko:main
 pretrain-llama = scripts.pretrain_llama:main
+push-to-hub = scripts.push_to_hub:main
+sft-train = scripts.sft_train:main
+test-from-hub = scripts.test_from_hub:main
+train-sft = scripts.train_sft:main

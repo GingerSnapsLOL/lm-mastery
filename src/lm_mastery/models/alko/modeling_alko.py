@@ -61,9 +61,6 @@ class GeluMLP(nn.Module):
 def make_mlp(kind, d, hidden):  # "swiglu" or "gelu"
     return SwiGLU(d, hidden) if kind == "swiglu" else GeluMLP(d, hidden)
 
-
-
-
 # -------- Attention (supports GQA) --------
 class AlkoAttention(nn.Module):
     def __init__(self, cfg: AlkoConfig):
@@ -100,61 +97,61 @@ class AlkoAttention(nn.Module):
             k = k.repeat_interleave(rep, dim=1)
             v = v.repeat_interleave(rep, dim=1)
 
-        # Attention computation in float32 for numerical stability
-        att = torch.matmul(q, k.transpose(-1, -2)) * (1.0 / math.sqrt(self.dh))  # [B,H,T,T]
+        # Attention
+        att = (q @ k.transpose(-2, -1)) / math.sqrt(self.dh)  # [B,H,T,T]
         
-        # Apply causal mask in float32
+        # Apply causal mask in float32 for stability
         if attn_mask is not None:
-            # Ensure mask is in float32 and properly broadcasted
-            m = attn_mask.to(torch.float32)
-            att = att + m
-
+            att = att + attn_mask.to(att.dtype)
+        
         att = torch.softmax(att, dim=-1)
         att = self.drop(att)
-        y = torch.matmul(att, v)  # [B,H,T,D] - still in float32
         
-        # Cast back to model's native dtype at the end
+        y = (att @ v).transpose(1, 2).contiguous().view(B, T, C)  # [B,T,C]
+        y = self.o(y)
+        
+        # Cast back to original dtype
         y = y.to(x.dtype)
-        y = y.transpose(1, 2).contiguous().view(B, T, self.h * self.dh)
-        return self.o(y)
+        
+        return y
 
 # -------- Block --------
 class AlkoBlock(nn.Module):
     def __init__(self, cfg: AlkoConfig):
         super().__init__()
-        d, ff = cfg.hidden_size, cfg.intermediate_size
-        self.norm1 = make_norm(cfg.norm_type, d)
-        self.attn  = AlkoAttention(cfg)
-        self.norm2 = make_norm(cfg.norm_type, d)
-        self.mlp   = make_mlp(cfg.mlp_type, d, ff)
-        self.drop  = nn.Dropout(cfg.dropout)
+        self.att = AlkoAttention(cfg)
+        self.mlp = make_mlp(cfg.mlp_type, cfg.hidden_size, cfg.intermediate_size)
+        self.norm1 = make_norm(cfg.norm_type, cfg.hidden_size)
+        self.norm2 = make_norm(cfg.norm_type, cfg.hidden_size)
+        self.drop = nn.Dropout(cfg.dropout)
 
-    def forward(self, x, attn_mask):
-        x = x + self.drop(self.attn(self.norm1(x), attn_mask))
+    def forward(self, x, attn_mask=None):
+        x = x + self.drop(self.att(self.norm1(x), attn_mask))
         x = x + self.drop(self.mlp(self.norm2(x)))
         return x
 
-# -------- Model --------
-class AlkoLLM(PreTrainedModel):  # a.k.a. AlkoForCausalLM
+# -------- Main Model --------
+class AlkoForCausalLM(PreTrainedModel):  # a.k.a. AlkoForCausalLM
     config_class = AlkoConfig
-
-    def __init__(self, cfg: AlkoConfig):
-        super().__init__(cfg)
-        self.embed = nn.Embedding(cfg.vocab_size, cfg.hidden_size)
-        self.use_learned_pos = (cfg.pos_type == "learned")
-        if self.use_learned_pos:
-            self.pos = nn.Embedding(cfg.max_position_embeddings, cfg.hidden_size)
-        self.blocks = nn.ModuleList([AlkoBlock(cfg) for _ in range(cfg.num_hidden_layers)])
-        self.norm_f = make_norm(cfg.norm_type, cfg.hidden_size)
-        self.lm_head = nn.Linear(cfg.hidden_size, cfg.vocab_size, bias=False)
-        self.dropout = nn.Dropout(cfg.dropout)
-        self.config.tie_word_embeddings = True
-        
-        # Initialize weights more conservatively
-        self._init_weights_apply()
-        self.post_init()
     
+    def __init__(self, config: AlkoConfig):
+        super().__init__(config)
+        self.embed = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.blocks = nn.ModuleList([AlkoBlock(config) for _ in range(config.num_hidden_layers)])
+        self.norm_f = make_norm(config.norm_type, config.hidden_size)
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.dropout = nn.Dropout(config.dropout)
+        
+        # Positional encoding
+        self.use_learned_pos = (config.pos_type == "learned")
+        if self.use_learned_pos:
+            self.pos = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        
+        # Initialize weights conservatively
+        self._init_weights_apply()
+        
     def _init_weights(self, module):
+        """Conservative weight initialization for stability"""
         if isinstance(module, torch.nn.Linear):
             # Much more conservative initialization
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.01)  # Reduced from 0.02

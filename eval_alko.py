@@ -42,7 +42,7 @@ print("Eval loss:", metrics["eval_loss"])
 print("Perplexity:", math.exp(metrics["eval_loss"]))
 
 # a tiny sample
-prompt = "You are AlkoLLM. Explain in simple words what a transformer is."
+prompt = "You are AlkoForCausalLM. Explain in simple words what a transformer is."
 inputs = tok(prompt, return_tensors="pt").to(model.device)
 out = model.generate(**inputs, max_new_tokens=128, do_sample=True, temperature=0.9, top_p=0.95,
                      repetition_penalty=1.1, no_repeat_ngram_size=3,

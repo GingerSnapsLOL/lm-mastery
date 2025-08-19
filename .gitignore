@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .venv/ /venv/ .env
 .cache/ wandb/ logs/
+.vscode/
 
 # Big data & checkpoints (keep them off Git)
 **/tokenizer/
@@ -19,7 +20,7 @@ __pycache__/
 **/scheduler.pt
 **/trainer_state.json
 .DS_Store
-
+hf_alko_*/
 
 .DS_Store
 

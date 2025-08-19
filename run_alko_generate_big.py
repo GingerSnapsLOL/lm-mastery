@@ -1,5 +1,5 @@
 import os, torch
-import alko  # registers AlkoConfig/AlkoLLM with Auto*
+import alko  # registers AlkoConfig/AlkoForCausalLM with Auto*
 from transformers import AutoModelForCausalLM, LlamaTokenizer
 
 CKPT = r"01-pretraining-pipeline/results/checkpoints/run_alko_big"

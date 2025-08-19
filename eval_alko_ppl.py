@@ -3,7 +3,7 @@ from datasets import load_from_disk
 from transformers import LlamaTokenizer
 from transformers import Trainer, TrainingArguments
 from alko.configuration_alko import AlkoConfig
-from alko.modeling_alko import AlkoLLM
+from alko.modeling_alko import AlkoForCausalLM
 
 CKPT = r"01-pretraining-pipeline/results/checkpoints/run_alko_wt103"
 VAL = r"01-pretraining-pipeline/data/processed/val.arrow"
@@ -19,7 +19,7 @@ if tok.pad_token is None: tok.pad_token = tok.eos_token
 
 # model
 dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-model = AlkoLLM.from_pretrained(CKPT, torch_dtype=dtype)
+model = AlkoForCausalLM.from_pretrained(CKPT, torch_dtype=dtype)
 if torch.cuda.is_available(): model.to("cuda")
 model.config.use_cache = False
 

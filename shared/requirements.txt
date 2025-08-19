@@ -9,3 +9,7 @@ tokenizers>=0.15
 evaluate>=0.4
 numpy>=1.26
 pyyaml>=6.0
+trl>=0.21.0
+huggingface-hub>=0.20
+pandas>=2.0
+pyarrow>=14.0
