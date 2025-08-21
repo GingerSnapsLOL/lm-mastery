@@ -24,3 +24,18 @@ python 01-pretraining-pipeline\scripts\pack_dataset_chunked.py ^
   --seq_len 1024 ^
   --output_path "01-pretraining-pipeline\data\processed\val_big.arrow" ^
   --shard_seqs 4000
+
+python scripts\eval_sft_ultra_v2.py ^
+  --ckpts ^
+    "01-pretraining-pipeline\results\checkpoints\run_llama_sft_ultra_v2" ^
+    "01-pretraining-pipeline\results\checkpoints\run_llama_sft_ultra" ^
+    "01-pretraining-pipeline\results\checkpoints\run_llama_baseline_109M" ^
+    "gpt2" ^
+  --max_eval 1500 --seq_len 1024 --bsz 1 --min_resp 32
+
+
+
+  python scripts\sft_continue_ultra_v3.py ^
+  --base_ckpt "01-pretraining-pipeline\results\checkpoints\run_llama_sft_ultra_v3" ^
+  --out_dir   "01-pretraining-pipeline\results\checkpoints\run_llama_sft_mix_v4" ^
+  --max_len 1024 --bsz 1 --ga 32 --lr 1e-5 --epochs 2

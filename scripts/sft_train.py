@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments
-from trl import SFTTrainer
-from lm_mastery.sft.formatters import alpaca_to_text, ultrachat_to_text
+from trl import SFTTrainer, SFTConfig
+from lm_mastery.sft.formatters import *
 
 def main():
     ap = argparse.ArgumentParser(description="Train model with SFT on specific datasets")
@@ -42,19 +42,23 @@ def main():
     # tokenizer
     print("Loading tokenizer...")
     tok = AutoTokenizer.from_pretrained(args.base_ckpt, use_fast=False)
+
     if tok.pad_token is None:
-        tok.add_special_tokens({"pad_token": "[PAD]"})
+        tok.add_special_tokens({"pad_token": tok.eos_token or "[PAD]"})
 
     # data
     print(f"Loading {args.dataset} dataset...")
     if args.dataset == "dolly":
-        ds = load_dataset("databricks/databricks-dolly-15k", split="train")
-        # Don't format here - SFTTrainer will handle it
-    else:  # ultrachat
-        # UltraChat has splits: ['train_sft', 'test_sft', 'train_gen', 'test_gen']
-        ds = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft")  # Fixed: use correct split name
-        # Don't format here - SFTTrainer will handle it
-    
+        raw = load_dataset("databricks/databricks-dolly-15k", split="train")
+        ds = raw.map(lambda ex: to_text_row(alpaca_to_text(ex)),
+                    remove_columns=raw.column_names)
+    else:
+        raw = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft")
+        ds = raw.map(ultrachat_to_text, remove_columns=raw.column_names)
+        # OPTIONAL: add a tiny safety separator in completion (helps masking)
+        ds = ds.map(lambda r: {"prompt": r["prompt"],
+                            "completion": "\n" + r["completion"].strip()})
+                            
     print(f"Loaded {len(ds)} examples")
 
     # model
@@ -70,7 +74,7 @@ def main():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    targs = TrainingArguments(
+    cfg = SFTConfig(
         output_dir=args.out_dir,
         per_device_train_batch_size=args.bsz,
         gradient_accumulation_steps=args.ga,
@@ -90,21 +94,11 @@ def main():
 
     # Create SFT trainer
     print("Creating SFT trainer...")
-    
-    # Define formatting function for the dataset
-    def format_dataset(examples):
-        """Format examples to text format for SFT training"""
-        if args.dataset == "dolly":
-            return alpaca_to_text(examples)
-        else:  # ultrachat
-            return ultrachat_to_text(examples)
-    
     trainer = SFTTrainer(
         model=model,
-        args=targs,
-        train_dataset=ds,
-        processing_class=tok,  # Use processing_class instead of tokenizer in trl 0.21.0
-        #formatting_func=format_dataset,  # Use formatting_func to format the dataset
+        processing_class=tok,                
+        train_dataset=ds,  
+        args=cfg,
     )
     
     print("Starting training...")

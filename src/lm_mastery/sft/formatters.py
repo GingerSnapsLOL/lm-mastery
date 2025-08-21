@@ -59,3 +59,8 @@ def chat_to_text(example):
         # Single message case
         content = messages[0].get("content", "").strip()
         return {"prompt": content, "completion": ""}
+
+
+def to_text_row(d):
+    # d is {"prompt": "...", "completion": "..."}
+    return {"text": (d.get("prompt","") + d.get("completion","")).strip()}
