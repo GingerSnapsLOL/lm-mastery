@@ -1,6 +1,6 @@
 # LM Mastery - Language Model Training and Evaluation Toolkit
 
-A comprehensive toolkit for training and evaluating language models with a focus on stability, reproducibility, and ease of use.
+A comprehensive toolkit for training and evaluating language models with a focus on stability, reproducibility, and ease of use. Includes pre-training, supervised fine-tuning (SFT), evaluation, and interactive chat capabilities.
 
 ## 🏗️ Repository Structure
 
@@ -10,13 +10,21 @@ lm-mastery/
 ├─ README.md                         # This file
 ├─ .vscode/                         # VS Code configuration
 ├─ data/                            # (optional) symlink to large data
-├─ scripts/                         # Thin CLI wrappers only
+├─ scripts/                         # CLI wrappers and training scripts
 │  ├─ pretrain_alko.py             # Train Alko model
 │  ├─ pretrain_llama.py            # Train Llama model
 │  ├─ eval_ppl.py                  # Evaluate perplexity
 │  ├─ eval_compare_wiki.py         # Compare models on Wiki
 │  ├─ generate.py                   # Generate text
-│  └─ diagnostic.py                 # Model diagnostics
+│  ├─ diagnostic.py                 # Model diagnostics
+│  ├─ sft_train.py                  # General SFT training (Dolly, UltraChat)
+│  ├─ sft_continue_ultra_v2.py     # Continue UltraChat SFT training v2
+│  ├─ sft_continue_ultra_v3.py     # Continue UltraChat SFT training v3
+│  ├─ sft_continue_mix_v4.py       # Mixed dataset SFT training (UltraChat + OpenHermes + OASST)
+│  ├─ chat_sft.py                   # Basic chat interface for SFT models
+│  ├─ chat_sft_v2.py               # Chat interface for v2-style models
+│  ├─ chat_sft_v3.py               # Advanced chat interface with conversation history
+│  └─ eval_sft_ultra_v2.py         # Evaluate SFT models on UltraChat test set
 ├─ src/
 │  └─ lm_mastery/                  # Main package
 │     ├─ __init__.py               # Package initialization
@@ -41,6 +49,9 @@ lm-mastery/
 │     │  └─ compare.py             # Model comparison
 │     ├─ gen/                      # Generation utilities
 │     │  └─ sampler.py             # Text generation
+│     ├─ sft/                      # SFT utilities
+│     │  ├─ formatters.py          # Dataset formatting functions
+│     │  └─ __init__.py
 │     └─ utils/                    # Utility functions
 │        ├─ io.py                  # Path handling, safe save
 │        ├─ seed.py                # Random seed management
@@ -97,14 +108,99 @@ python scripts/pretrain_llama.py \
   --warmup-ratio 0.15
 ```
 
-### 4. Evaluate Model
+### 4. Supervised Fine-Tuning (SFT)
 
+#### **Basic SFT Training**
 ```bash
-# Evaluate perplexity
+# Train on Dolly dataset
+python scripts/sft_train.py \
+  --base_ckpt "results/checkpoints/run_alko_big" \
+  --out_dir "results/checkpoints/run_alko_dolly" \
+  --dataset dolly \
+  --bsz 1 \
+  --ga 16 \
+  --lr 2e-5 \
+  --epochs 3
+
+# Train on UltraChat dataset
+python scripts/sft_train.py \
+  --base_ckpt "results/checkpoints/run_llama_baseline_109M" \
+  --out_dir "results/checkpoints/run_llama_ultrachat" \
+  --dataset ultrachat \
+  --bsz 1 \
+  --ga 16 \
+  --lr 2e-5 \
+  --epochs 3
+```
+
+#### **Continue UltraChat Training**
+```bash
+# Continue from v2 to v3
+python scripts/sft_continue_ultra_v3.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_ultra_v2" \
+  --out_dir "results/checkpoints/run_llama_sft_ultra_v3" \
+  --max_len 2048 \
+  --bsz 1 \
+  --ga 32 \
+  --lr 1e-5 \
+  --epochs 2
+```
+
+#### **Mixed Dataset Training (Recommended)**
+```bash
+# Train on mixed high-quality datasets
+python scripts/sft_continue_mix_v4.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_ultra_v3" \
+  --out_dir "results/checkpoints/run_llama_sft_mix_v4" \
+  --max_len 2048 \
+  --bsz 1 \
+  --ga 32 \
+  --lr 2e-5 \
+  --epochs 2 \
+  --ultra_frac 0.6 \
+  --hermes_frac 0.25 \
+  --oasst_frac 0.15
+```
+
+### 5. Interactive Chat
+
+#### **Basic Chat Interface**
+```bash
+# Simple chat for any SFT model
+python scripts/chat_sft.py \
+  --ckpt "results/checkpoints/run_llama_sft_ultra_v3"
+```
+
+#### **Advanced Chat with History**
+```bash
+# Chat with conversation history and context management
+python scripts/chat_sft_v3.py \
+  --ckpt "results/checkpoints/run_llama_sft_mix_v4" \
+  --max_new_tokens 512 \
+  --temperature 0.7 \
+  --history_turns 8
+```
+
+### 6. Evaluation
+
+#### **Perplexity Evaluation**
+```bash
+# Evaluate model perplexity
 python scripts/eval_ppl.py --checkpoint results/checkpoints/run_alko_big
 
 # Run diagnostics
 python scripts/diagnostic.py --checkpoint results/checkpoints/run_alko_big
+```
+
+#### **SFT Model Evaluation**
+```bash
+# Compare multiple SFT models on UltraChat test set
+python scripts/eval_sft_ultra_v2.py \
+  --ckpts "results/checkpoints/run_llama_sft_ultra_v2" \
+           "results/checkpoints/run_llama_sft_ultra_v3" \
+           "results/checkpoints/run_llama_sft_mix_v4" \
+  --max_eval 1500 \
+  --seq_len 1024
 ```
 
 ## 🔧 Key Features
@@ -119,6 +215,24 @@ python scripts/diagnostic.py --checkpoint results/checkpoints/run_alko_big
 - **Loss Clipping**: Automatically handles NaN/Inf values
 - **Gradient Clipping**: Aggressive clipping for stability
 - **Mixed Precision**: BF16/FP16 support with automatic detection
+
+### **SFT Training Pipeline**
+- **Completion-Only Loss**: Focuses training on response quality
+- **Mixed Dataset Training**: Combines UltraChat, OpenHermes, and OASST
+- **Progressive Training**: v2 → v3 → mix_v4 pipeline for quality improvement
+- **Context-Aware Length**: Automatically respects model position embeddings
+
+### **Interactive Chat**
+- **Conversation History**: Maintains context across multiple turns
+- **Smart Truncation**: Preserves recent conversation while fitting context
+- **Template Matching**: Uses exact training prompt format
+- **Memory Efficient**: Automatic context management
+
+### **Comprehensive Evaluation**
+- **Perplexity Metrics**: Standard language model evaluation
+- **SFT-Specific Metrics**: Completion-only loss evaluation
+- **Model Comparison**: Side-by-side performance analysis
+- **Robust Testing**: Handles edge cases and errors gracefully
 
 ### **Modular Architecture**
 - **Reusable Components**: Shared training, evaluation, and data utilities
@@ -135,6 +249,9 @@ python scripts/diagnostic.py --checkpoint results/checkpoints/run_alko_big
 ### **Model Checkpoints**
 - **Alko**: `01-pretraining-pipeline/results/checkpoints/run_alko_big/`
 - **Llama**: `01-pretraining-pipeline/results/checkpoints/run_llama_baseline_109M/`
+- **SFT UltraChat v2**: `results/checkpoints/run_llama_sft_ultra_v2/`
+- **SFT UltraChat v3**: `results/checkpoints/run_llama_sft_ultra_v3/`
+- **SFT Mixed v4**: `results/checkpoints/run_llama_sft_mix_v4/`
 
 ### **Environment Variables**
 ```bash
@@ -146,55 +263,77 @@ export LM_MASTERY_OUTPUT_DIR="path/to/outputs"
 
 ## 🎯 Usage Examples
 
-### **Custom Training Configuration**
+### **SFT Training Pipeline**
 
-```python
-from lm_mastery.train.pretrain import TrainingConfig
+```bash
+# Step 1: Initial SFT on UltraChat
+python scripts/sft_train.py \
+  --base_ckpt "results/checkpoints/run_llama_baseline_109M" \
+  --out_dir "results/checkpoints/run_llama_sft_ultra_v1" \
+  --dataset ultrachat \
+  --epochs 3
 
-config = TrainingConfig(
-    model_name="my_model",
-    learning_rate=1e-4,
-    warmup_ratio=0.1,
-    max_grad_norm=0.5,
-    batch_size=2,
-    gradient_accumulation_steps=16
-)
+# Step 2: Continue training with better parameters
+python scripts/sft_continue_ultra_v3.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_ultra_v1" \
+  --out_dir "results/checkpoints/run_llama_sft_ultra_v3" \
+  --max_len 2048 \
+  --ga 32 \
+  --lr 1e-5 \
+  --epochs 2
+
+# Step 3: Mixed dataset training for final quality
+python scripts/sft_continue_mix_v4.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_ultra_v3" \
+  --out_dir "results/checkpoints/run_llama_sft_mix_v4" \
+  --max_len 2048 \
+  --ga 32 \
+  --lr 2e-5 \
+  --epochs 2
 ```
 
-### **Robust Dataset Loading**
+### **Interactive Chat Sessions**
 
-```python
-from lm_mastery.data.loaders import load_packed_dataset
+```bash
+# Start chat with your trained model
+python scripts/chat_sft_v3.py \
+  --ckpt "results/checkpoints/run_llama_sft_mix_v4" \
+  --temperature 0.7 \
+  --max_new_tokens 512
 
-# Automatically handles feature type issues
-dataset = load_packed_dataset("path/to/dataset")
+# Example conversation:
+# You: What is machine learning?
+# Assistant: Machine learning is a subset of artificial intelligence...
+# You: Can you explain neural networks?
+# Assistant: Neural networks are computational models inspired by...
 ```
 
-### **Safe Model Training**
+### **Model Evaluation**
 
-```python
-from lm_mastery.train.pretrain import create_trainer, init_model_weights
+```bash
+# Evaluate perplexity
+python scripts/eval_ppl.py --checkpoint results/checkpoints/run_alko_big
 
-# Conservative initialization
-init_model_weights(model, std=0.01)
-
-# Safe trainer with loss clipping
-trainer = create_trainer(model, tokenizer, dataset, config, output_dir)
+# Compare SFT models
+python scripts/eval_sft_ultra_v2.py \
+  --ckpts "results/checkpoints/run_llama_sft_ultra_v2" \
+           "results/checkpoints/run_llama_sft_ultra_v3" \
+           "results/checkpoints/run_llama_sft_mix_v4"
 ```
 
 ## 🛠️ Development
+
+### **Adding New SFT Datasets**
+
+1. **Create Formatter**: Add function to `src/lm_mastery/sft/formatters.py`
+2. **Update Scripts**: Modify SFT training scripts to use new dataset
+3. **Test Integration**: Verify with small dataset subset
 
 ### **Adding New Models**
 
 1. **Create Model Module**: `src/lm_mastery/models/your_model/`
 2. **Add Configuration**: `src/lm_mastery/configs/your_model.yaml`
 3. **Create Training Script**: `scripts/pretrain_your_model.py`
-
-### **Adding New Utilities**
-
-1. **Create Module**: `src/lm_mastery/your_module/`
-2. **Update `__init__.py`**: Add imports and exports
-3. **Add Tests**: Create corresponding test files
 
 ### **Running Tests**
 
@@ -219,6 +358,7 @@ flake8 src/ scripts/
 1. **Feature Type Errors**: Automatically handled by robust loaders
 2. **Training Instability**: Use conservative initialization and loss clipping
 3. **Memory Issues**: Enable gradient checkpointing and use mixed precision
+4. **SFT Quality Issues**: Use completion-only loss and mixed datasets
 
 ### **Debugging**
 
@@ -228,6 +368,9 @@ python scripts/diagnostic.py --checkpoint your/checkpoint
 
 # Check dataset loading
 python -c "from lm_mastery.data.loaders import load_train_dataset; print(load_train_dataset('train_big'))"
+
+# Test SFT formatters
+python -c "from lm_mastery.sft.formatters import alpaca_to_text; print(alpaca_to_text({'instruction': 'test', 'response': 'test'}))"
 ```
 
 ## 📚 Dependencies
@@ -235,6 +378,7 @@ python -c "from lm_mastery.data.loaders import load_train_dataset; print(load_tr
 - **PyTorch**: >=2.0.0
 - **Transformers**: >=4.30.0
 - **Datasets**: >=2.10.0
+- **TRL**: >=0.21.0 (for SFT training)
 - **PyArrow**: >=10.0.0
 - **Pandas**: >=1.5.0
 - **NumPy**: >=1.21.0
@@ -254,7 +398,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- **Hugging Face** for the transformers library
+- **Hugging Face** for the transformers and TRL libraries
 - **PyTorch** team for the deep learning framework
 - **Datasets** team for data loading utilities
+- **OpenHermes** and **OASST** teams for high-quality instruction datasets
 
