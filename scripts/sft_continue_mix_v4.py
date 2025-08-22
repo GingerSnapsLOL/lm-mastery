@@ -130,7 +130,7 @@ def main():
         gradient_checkpointing=True,
         dataloader_num_workers=0,
         completion_only_loss=True,
-        max_seq_length=min(args.max_len, ctx),
+        max_length=min(args.max_len, ctx),
         packing=False,
     )
 
