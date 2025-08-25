@@ -21,6 +21,7 @@ lm-mastery/
 │  ├─ sft_continue_ultra_v2.py     # Continue UltraChat SFT training v2
 │  ├─ sft_continue_ultra_v3.py     # Continue UltraChat SFT training v3
 │  ├─ sft_continue_mix_v4.py       # Mixed dataset SFT training (UltraChat + OpenHermes + OASST)
+│  ├─ dpo_train.py                  # Direct Preference Optimization training
 │  ├─ chat_sft.py                   # Basic chat interface for SFT models
 │  ├─ chat_sft_v2.py               # Chat interface for v2-style models
 │  ├─ chat_sft_v3.py               # Advanced chat interface with conversation history
@@ -162,7 +163,37 @@ python scripts/sft_continue_mix_v4.py \
   --oasst_frac 0.15
 ```
 
-### 5. Interactive Chat
+### **5. Direct Preference Optimization (DPO)**
+
+#### **DPO Training from SFT Model**
+```bash
+# Train with UltraFeedback dataset (recommended)
+python scripts/dpo_train.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_mix_v4" \
+  --out_dir "results/checkpoints/run_llama_dpo_ultra" \
+  --dataset ultrafeedback \
+  --max_len 1024 \
+  --max_prompt_len 768 \
+  --bsz 1 \
+  --ga 32 \
+  --lr 5e-6 \
+  --beta 0.1 \
+  --epochs 1
+
+# Train with custom preference dataset
+python scripts/dpo_train.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_mix_v4" \
+  --out_dir "results/checkpoints/run_llama_dpo_custom" \
+  --dataset custom \
+  --max_len 1024 \
+  --bsz 1 \
+  --ga 32 \
+  --lr 5e-6 \
+  --beta 0.2 \
+  --epochs 1
+```
+
+### **6. Interactive Chat**
 
 #### **Basic Chat Interface**
 ```bash
@@ -221,6 +252,12 @@ python scripts/eval_sft_ultra_v2.py \
 - **Mixed Dataset Training**: Combines UltraChat, OpenHermes, and OASST
 - **Progressive Training**: v2 → v3 → mix_v4 pipeline for quality improvement
 - **Context-Aware Length**: Automatically respects model position embeddings
+
+### **DPO Training**
+- **Preference Learning**: Trains on chosen vs rejected response pairs
+- **Multiple Datasets**: UltraFeedback, Identity, and custom preference datasets
+- **Self-Reference**: Uses same model as reference for efficient training
+- **Quality Improvement**: Builds upon SFT models for better response alignment
 
 ### **Interactive Chat**
 - **Conversation History**: Maintains context across multiple turns
@@ -290,6 +327,18 @@ python scripts/sft_continue_mix_v4.py \
   --ga 32 \
   --lr 2e-5 \
   --epochs 2
+
+# Step 4: DPO training for preference alignment
+python scripts/dpo_train.py \
+  --base_ckpt "results/checkpoints/run_llama_sft_mix_v4" \
+  --out_dir "results/checkpoints/run_llama_dpo_final" \
+  --dataset ultrafeedback \
+  --max_len 1024 \
+  --bsz 1 \
+  --ga 32 \
+  --lr 5e-6 \
+  --beta 0.1 \
+  --epochs 1
 ```
 
 ### **Interactive Chat Sessions**
@@ -328,6 +377,12 @@ python scripts/eval_sft_ultra_v2.py \
 1. **Create Formatter**: Add function to `src/lm_mastery/sft/formatters.py`
 2. **Update Scripts**: Modify SFT training scripts to use new dataset
 3. **Test Integration**: Verify with small dataset subset
+
+### **Adding New Preference Datasets**
+
+1. **Create Formatter**: Add dataset loading and formatting logic to `scripts/dpo_train.py`
+2. **Update Choices**: Add new dataset option to the `--dataset` argument
+3. **Test Format**: Ensure chosen/rejected pairs are properly formatted
 
 ### **Adding New Models**
 

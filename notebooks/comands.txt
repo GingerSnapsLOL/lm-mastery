@@ -44,4 +44,4 @@ python scripts\eval_sft_ultra_v2.py ^
   python scripts\sft_continue_mix_v4.py ^
   --base_ckpt "01-pretraining-pipeline\results\checkpoints\run_llama_sft_ultra_v3" ^
   --out_dir   "01-pretraining-pipeline\results\checkpoints\run_llama_sft_mix_v4" ^
-  --max_len 1024 --bsz 1 --ga 32 --lr 1e-5 --epochs 2
+  --max_len 2048 --bsz 1 --ga 32 --lr 2e-5 --epochs 2
