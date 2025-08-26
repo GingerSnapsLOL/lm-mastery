@@ -34,9 +34,9 @@ def main():
                    help="Batch size per device")
     ap.add_argument("--ga", type=int, default=32, 
                    help="Gradient accumulation steps")
-    ap.add_argument("--lr", type=float, default=5e-6, 
+    ap.add_argument("--lr", type=float, default=3e-7, 
                    help="Learning rate")
-    ap.add_argument("--beta", type=float, default=0.1, 
+    ap.add_argument("--beta", type=float, default=0.05, 
                    help="DPO beta parameter (controls preference strength)")
     ap.add_argument("--epochs", type=int, default=1, 
                    help="Number of training epochs")
@@ -95,24 +95,35 @@ def main():
                 return user.strip(), asst.strip()
             return "", ""
 
-        def format_ultrafeedback_for_dpo(ex):
+        def format_ultrafeedback_for_dpo(ex, max_user_len=None):
             u_c, a_c = _pick_user_and_assistant(ex.get("chosen", []))
             u_r, a_r = _pick_user_and_assistant(ex.get("rejected", []))
 
-            # Build one prompt for both completions; fall back to ex['prompt'] if needed
             user_text = (u_c or u_r or ex.get("prompt","")).strip()
+            if max_user_len is not None and len(user_text) > max_user_len:
+                user_text = user_text[:max_user_len].rstrip()
+
             prompt = f"User: {user_text}\n{RESP_TMPL}"
 
-            # Keep the same completion boundary as SFT (you trained with a leading newline)
-            if a_c and not a_c.startswith("\n"): a_c = "\n" + a_c
-            if a_r and not a_r.startswith("\n"): a_r = "\n" + a_r
+            # Keep leading newline to match SFT convention
+            if a_c and not a_c.startswith("\n"): a_c = "\n" + a_c.lstrip()
+            if a_r and not a_r.startswith("\n"): a_r = "\n" + a_r.lstrip()
 
             return {"prompt": prompt, "chosen": a_c, "rejected": a_r}
-
                 
         raw_ds = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="train_prefs")
-        ds = raw_ds.map(format_ultrafeedback_for_dpo, remove_columns=raw_ds.column_names)
-        ds = ds.filter(lambda r: len(r["prompt"])>0 and len(r["chosen"])>8 and len(r["rejected"])>8)
+        ds = raw_ds.map(lambda ex: format_ultrafeedback_for_dpo(ex, max_user_len=None),
+                        remove_columns=raw_ds.column_names)
+
+        def _ok_row(r):
+            if not r["prompt"]: return False
+            ch = r["chosen"].strip()
+            rj = r["rejected"].strip()
+            if len(ch) <= 8 or len(rj) <= 8: return False
+            if ch == rj: return False
+            return True
+
+        ds = ds.filter(_ok_row)
 
         
     elif args.dataset == "identity":
@@ -178,31 +189,55 @@ def main():
 
     dpo_config = DPOConfig(
         output_dir=args.out_dir,
+        # core schedule
+        learning_rate=args.lr,
+        lr_scheduler_type="cosine",
+        warmup_ratio=0.05,
+        num_train_epochs=args.epochs,
         per_device_train_batch_size=args.bsz,
         gradient_accumulation_steps=args.ga,
-        num_train_epochs=args.epochs,
-        learning_rate=args.lr,
-        beta=args.beta,
-        max_prompt_length=args.max_prompt_len,
-        max_length=args.max_len,
+
+        # stability
+        weight_decay=0.01,
+        max_grad_norm=0.5,
+
+        # dtypes / ckpt
         bf16=torch.cuda.is_available(),
         fp16=False,
-        logging_steps=20,
-        save_strategy="epoch",
-        report_to=[],
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+
+        # logging / saving
+        logging_steps=20,
+        logging_first_step=True,
+        save_strategy="epoch",
+        save_total_limit=2,
+        report_to=[],  # no wandb unless you enable it
+        # evaluation_strategy="no",  # set to "steps" only if you add eval_dataset
+
+        # TRL / HF Trainer quirks
+        remove_unused_columns=False,
         dataloader_num_workers=0,
+
+        # DPO-specific
+        beta=args.beta,
+        loss_type="sigmoid",
+        label_smoothing=0.0,
+        precompute_ref_log_probs=True,  # optional speedup
+        max_prompt_length=args.max_prompt_len,
+        max_length=args.max_len,
     )
 
-    # Create DPO trainer
     print("Creating DPO trainer...")
     dpo_trainer = DPOTrainer(
         model=model,
-        ref_model=None,  # Use the same model as reference (self-DPO)
+        ref_model=None,              # TRL will clone & freeze current model as reference
         args=dpo_config,
-        processing_class=tok,  # TRL 0.21+ uses processing_class
+        processing_class=tok,        # TRL 0.21.0 uses processing_class parameter
         train_dataset=ds,
+        # eval_dataset=val_ds,       # add when you wire validation
     )
+
 
     # Start training
     print("Starting DPO training...")
