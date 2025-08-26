@@ -64,8 +64,9 @@ def main():
     # Load tokenizer and model
     print("Loading tokenizer and model...")
     tok = AutoTokenizer.from_pretrained(args.base_ckpt, use_fast=False)
-    if tok.pad_token is None:
-        tok.add_special_tokens({"pad_token": tok.eos_token or "[PAD]"})
+    tok.pad_token = tok.eos_token if tok.pad_token is None else tok.pad_token
+    tok.padding_side = "right"        # <— use RIGHT padding for DPOTrainer
+    tok.truncation_side = "left" 
 
     model = AutoModelForCausalLM.from_pretrained(
         args.base_ckpt,
@@ -73,7 +74,12 @@ def main():
     )
     model.resize_token_embeddings(len(tok))
     model.config.use_cache = False
-
+    from copy import deepcopy
+# Option A: reload a fresh copy from disk
+    ref_model = AutoModelForCausalLM.from_pretrained(args.base_ckpt, torch_dtype=torch.bfloat16, device_map="auto")
+    ref_model.eval()
+    for p in ref_model.parameters():
+        p.requires_grad_(False)
     # Load preference dataset
     print(f"Loading {args.dataset} preference dataset...")
     
@@ -81,9 +87,11 @@ def main():
         # UltraFeedback binarized dataset
         raw_ds = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="train_prefs")
         
-# --- DPO data formatting for UltraFeedback (keeps your exact template) ---
+# --- DPO data formatting for UltraFeedback (matches your SFT template) ---
+# Your SFT template: TEMPLATE = "User: {q}\nAssistant:\n"
+# This DPO script uses: "User: {user_text}\nAssistant:\n" + response
 
-        RESP_TMPL = "Assistant:\n"   # must appear in the prompt
+        RESP_TMPL = "Assistant:\n"   # must match your SFT template format
 
         def _pick_user_and_assistant(block):
             """block is either a string or a list of {'role','content'} dicts."""
@@ -231,7 +239,7 @@ def main():
     print("Creating DPO trainer...")
     dpo_trainer = DPOTrainer(
         model=model,
-        ref_model=None,              # TRL will clone & freeze current model as reference
+        ref_model=ref_model,              # TRL will clone & freeze current model as reference
         args=dpo_config,
         processing_class=tok,        # TRL 0.21.0 uses processing_class parameter
         train_dataset=ds,
