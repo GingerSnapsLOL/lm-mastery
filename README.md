@@ -234,9 +234,41 @@ python scripts/eval_sft_ultra_v2.py \
   --seq_len 1024
 ```
 
-## 🔧 Key Features
+## 🏗️ Model Architectures
 
-### **Robust Dataset Loading**
+### **Custom 1.0B Model Specification**
+
+A high-performance 1.0B parameter model designed for efficiency and quality:
+
+**Core Architecture:**
+- **Parameters**: ~1.0B
+- **Layers**: 30
+- **Hidden Size (d_model)**: 1536
+- **Attention Heads**: 12 (head_dim = 128)
+- **KV Heads (GQA)**: 4 (Grouped Query Attention)
+- **FFN (SwiGLU)**: 4096 (≈ 8/3 × 1536)
+
+**Advanced Features:**
+- **Normalization**: RMSNorm (eps 1e-5), Pre-LN
+- **QK-Norm**: Enabled (normalizes queries & keys)
+- **Positional Encoding**: RoPE θ=1e6 with dynamic/NTK scaling to 8k (optionally 16k later)
+- **Dropout**: 0.0 (decoder/attn/ffn) for pretraining; weight decay instead
+- **Activation**: SwiGLU
+- **Attention**: FlashAttention-3 (requires flash-attn), causal mask
+- **KV-cache Paging**: Enabled at inference time
+
+**Training Configuration:**
+- **Precision**: bf16 for forward/backward; gradient accumulation as needed
+- **Vocabulary**: 50k SentencePiece (byte-fallback) - 32k is acceptable, 50k helps with code/mixed content
+- **Context Length**: 2,048 tokens (can continue-pretrain to 8k/16k later)
+
+**Design Rationale:**
+- **Efficient Attention**: GQA reduces memory usage while maintaining quality
+- **Modern Architecture**: SwiGLU + RMSNorm for better training stability
+- **Scalable Context**: RoPE with NTK scaling allows future context expansion
+- **Code-Optimized**: 50k vocab size improves code generation capabilities
+
+## 🔧 Key Features
 - **Automatic Feature Type Fixing**: Handles `List` → `Sequence` compatibility issues
 - **Multiple Fallback Strategies**: Arrow → Parquet → Raw file reading
 - **Cross-version Compatibility**: Works with different datasets library versions

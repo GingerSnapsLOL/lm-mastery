@@ -1,0 +1,30 @@
+temperature: 0.5
+sources:
+  - name: fineweb
+    type: text
+    data_files: "/PATH/TO/fineweb/**/*.txt"
+    weight: 0.60
+    newline_separated: true
+  - name: wikipedia
+    type: hf
+    dataset: "wikipedia"
+    config: "20220301.en"
+    split: "train"
+    text_column: "text"
+    weight: 0.10
+  - name: books
+    type: text
+    data_files: "/PATH/TO/books/**/*.txt"
+    weight: 0.10
+    newline_separated: true
+  - name: code
+    type: text
+    data_files: "/PATH/TO/code/**/*.*"
+    weight: 0.10
+    newline_separated: true
+  - name: math
+    type: hf
+    dataset: "openwebmath"
+    split: "train"
+    text_column: "text"
+    weight: 0.10
