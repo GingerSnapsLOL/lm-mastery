@@ -97,7 +97,17 @@ def main():
     with open(args.model_config, "r") as f:
         cfg_json = json.load(f)
     cfg = LlamaConfig(**cfg_json)
-    model = LlamaForCausalLM(cfg)
+    
+    # Try to use Flash Attention 2 if available
+    try:
+        model = LlamaForCausalLM.from_config(cfg, attn_implementation="flash_attention_2")
+        print("Using Flash Attention 2")
+    except (ImportError, ValueError):
+        model = LlamaForCausalLM(cfg)
+        print("Using standard attention (Flash Attention 2 not available)")
+    
+    # Disable cache during training for memory efficiency
+    model.config.use_cache = False
     model.gradient_checkpointing_enable(use_reentrant=False)
 
     token_stream = build_streaming_dataset(args.mix_yaml, tok)

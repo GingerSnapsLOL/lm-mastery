@@ -34,6 +34,7 @@ hf_alko_*/
 *.bin
 
 # Datasets / checkpoints
+*.ipynb
 *.arrow
 *.parquet
 *.h5
@@ -61,3 +62,5 @@ tmp_*/
 **/*.bin
 **/*.safetensors
 **/notebooks/.ipynb_checkpoints/
+notebooks/
+**/*.ipynb_checkpoints/

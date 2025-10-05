@@ -11,6 +11,16 @@
 # 1. Prepare data
 # 2. Train model
 # 3. Evaluate model
+
+
+# Version 2
+# decoder-only transformer with the common 2024–2025 upgrades (FlashAttention-3,
+#  GQA, SwiGLU, RMSNorm, RoPE with long-context scaling, QK-Norm).
+
+
+
+
+
     
 
 

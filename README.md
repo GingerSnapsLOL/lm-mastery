@@ -65,7 +65,44 @@ lm-mastery/
 
 ## 🚀 Quick Start
 
-### 1. Install Package (Editable)
+### 1. Build Unified Corpus (Alko2 Training)
+
+Before training the Alko2 model, you need to organize your raw data into a unified corpus:
+
+#### **Step 1: Organize Raw Data**
+Put all your raw data under several root directories (can be different drives):
+```
+D:\data\fineweb_shards\
+D:\data\books\
+E:\scrapes\wikipedia\
+D:\dumps\code\
+etc.
+```
+
+#### **Step 2: Run Corpus Builder**
+```bash
+cd alko2
+python make_corpus.py --roots "D:\data" "E:\scrapes" --out_dir "D:\corpus_alko2" --write_yaml
+```
+
+**Optional Parameters:**
+- `--use_symlinks`: Avoid copying (Linux; on Windows needs admin for junctions)
+- `--max_files_per_bucket 1000`: Test the pipeline quickly with limited files
+- `--text_keys "text,content,body,document"`: Pick the right field from JSONL/Parquet
+
+#### **Step 3: What the Script Does**
+- Creates subfolders: `fineweb`, `wikipedia`, `books`, `code`, `math`, `misc`
+- Converts JSONL/NDJSON(.gz) and Parquet to `.txt` (picking the first available text key)
+- Copies/symlinks existing `.txt` files
+- Writes `data_mixture.yaml` at the parent of `out_dir`, pointing to the created folders
+
+#### **Step 4: Use in Training**
+Point `pretrain.py` to your generated `data_mixture.yaml`:
+```bash
+accelerate launch pretrain.py --mix_yaml "C:\path\to\data_mixture.yaml" ...
+```
+
+### 2. Install Package (Editable)
 
 ```bash
 # Install in editable mode
